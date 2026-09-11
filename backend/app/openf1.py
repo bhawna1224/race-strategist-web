@@ -31,18 +31,33 @@ def get(endpoint: str, **params):
 
 
 def resolve_race_session(year: int, country: str):
-    """Find the meeting and Race session for a given year + country."""
-    meetings = get("meetings", year=year, country_name=country)
-    if not meetings:
-        raise ValueError(f"No meeting found for {country} {year}")
-    meeting = meetings[0]
-    sessions = get("sessions", meeting_key=meeting["meeting_key"], session_name="Race")
+    """
+    Find the Race session for a given year + country.
+
+    IMPORTANT: this queries /sessions directly with session_name="Race",
+    rather than going through /meetings first and taking the first
+    result. OpenF1 records pre-season testing days as their own
+    "meetings" too -- for a country like Bahrain (whose actual 2026 GP
+    was cancelled but which still hosted testing), taking meetings[0]
+    picked up "ARAMCO PRE-SEASON TESTING 1 2026" instead of a race
+    weekend. Filtering sessions directly by session_name="Race" sidesteps
+    that ambiguity by asking for exactly what we want from the start.
+    """
+    sessions = get("sessions", year=year, country_name=country, session_name="Race")
     if not sessions:
         raise ValueError(
-            f"No Race session data found for {meeting['meeting_official_name']}. "
+            f"No Race session data found for {country} {year}. "
             f"This usually means the race hasn't happened yet, or was cancelled."
         )
-    return meeting, sessions[0]
+    session = sessions[0]
+    meetings = get("meetings", meeting_key=session["meeting_key"])
+    meeting = meetings[0] if meetings else {
+        "meeting_key": session["meeting_key"],
+        "meeting_official_name": f"{country} Grand Prix {year}",
+        "country_name": country,
+        "circuit_short_name": session.get("circuit_short_name", ""),
+    }
+    return meeting, session
 
 
 def list_meetings(year: int):
