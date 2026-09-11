@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root{
+  --bg:#14161A;
+  --panel:#1B1E23;
+  --panel-border:#2A2E35;
+  --text:#ECEEF1;
+  --text-muted:#9BA1AC;
+  --red:#E8402C;
+  --red-dim:#5A2016;
+  --purple:#A64DFF;
+  --green:#34D399;
+  --yellow:#E8B93E;
+  --soft:#E8402C;
+  --medium:#F2C641;
+  --hard:#F2F1EC;
+}
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: local('Barlow Condensed');
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-variant-numeric:tabular-nums;
+  line-height:1.55;
+}
+
+.font-display{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;
+  letter-spacing:0.01em;
+  line-height:1.05;
+}
+
+select, input[type=number]{
+  background:var(--bg); color:var(--text); border:1px solid var(--panel-border);
+  padding:8px 10px; font-family:'Inter',sans-serif; font-size:14px; width:100%;
+}
+select:focus-visible, input:focus-visible{outline:2px solid var(--purple); outline-offset:1px;}

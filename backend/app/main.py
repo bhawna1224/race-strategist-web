@@ -110,9 +110,12 @@ def post_simulate(req: SimulateRequest):
     return result
 
 
-# --- Serve the static frontend from the same process -----------------
+# --- Serve the built React frontend from the same process -------------
 # This must be mounted LAST, after the /api routes, so it doesn't shadow
 # them (StaticFiles with html=True serves index.html for unmatched paths).
-FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
+# Note: this now points at frontend/dist (the Vite build output), not the
+# frontend/ source directory -- see render.yaml for the build step that
+# produces it.
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
