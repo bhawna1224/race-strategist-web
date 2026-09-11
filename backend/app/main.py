@@ -116,6 +116,17 @@ def post_simulate(req: SimulateRequest):
 # Note: this now points at frontend/dist (the Vite build output), not the
 # frontend/ source directory -- see render.yaml for the build step that
 # produces it.
-FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-if FRONTEND_DIR.exists():
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
+
+# Keep the deployment failure obvious instead of silently returning 404s when
+# the Vite build was skipped. Render must run `npm install && npm run build`.
+if not FRONTEND_DIR.is_dir():
+    @app.get("/")
+    def frontend_not_built():
+        raise HTTPException(
+            status_code=503,
+            detail="Frontend build not found. Run: cd frontend && npm install && npm run build",
+        )
+else:
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
