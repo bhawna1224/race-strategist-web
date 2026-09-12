@@ -180,7 +180,7 @@ def compute_per_driver_base_pace(stint_fits, offsets, anchor, all_compounds, dri
             fallback_pace = driver_fits.loc[driver_fits["compound"] == fallback_compound, "intercept"].mean()
             anchor_pace = fallback_pace - offsets.get(fallback_compound, 0.0)
 
-        result[int(driver)] = {
+        result[str(int(driver))] = {
             "name": drow.get("name_acronym", str(driver)),
             "team": drow.get("team_name", ""),
             "base_pace": {c: round(anchor_pace + offsets.get(c, 0.0), 4) for c in all_compounds},
