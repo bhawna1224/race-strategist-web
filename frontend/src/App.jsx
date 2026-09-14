@@ -78,13 +78,14 @@ export default function App() {
       });
       if (r.error) { setError(r.error); setResult(null); return; }
       setResult(r);
-      if (country === 'Italy' && driver === 12) {
+      const driverInfo = raceModel.drivers[String(driver)];
+      if (driverInfo?.actual_strategy) {
         const rr = await api('/api/simulate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ year: DEFAULT_YEAR, country: 'Italy', driver_number: 12, pit_laps: ITALY_ANTONELLI_REAL.pitLaps, compounds: ITALY_ANTONELLI_REAL.compounds }),
+          body: JSON.stringify({ year: DEFAULT_YEAR, country, driver_number: driver, pit_laps: driverInfo.actual_strategy.pit_laps, compounds: driverInfo.actual_strategy.compounds }),
         });
-        setRealResult(rr);
+        setRealResult(rr.error ? null : rr);
       } else {
         setRealResult(null);
       }
@@ -246,8 +247,10 @@ export default function App() {
 
               {realResult && result && (
                 <div className="flex gap-6 flex-wrap mt-3 text-sm">
-                  <Delta label="vs. real team's strategy (model)" value={result.total_time_seconds - realResult.total_time_seconds} />
-                  <Delta label="vs. actual recorded race time" value={result.total_time_seconds - 6675.281} />
+                  <Delta label="vs. this driver's real strategy (model)" value={result.total_time_seconds - realResult.total_time_seconds} />
+                  {raceModel.drivers[String(driver)]?.actual_time_seconds != null && (
+                    <Delta label="vs. their actual recorded race time" value={result.total_time_seconds - raceModel.drivers[String(driver)].actual_time_seconds} />
+                  )}
                 </div>
               )}
             </div>
@@ -256,30 +259,30 @@ export default function App() {
         </div>
       </section>
 
-      {isItalyAntonelli && (
+      {realResult && result && (
         <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-14" style={{ borderColor: 'var(--panel-border)' }}>
-          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Final comparison &mdash; Italian GP + Antonelli only</p>
-          <h2 className="font-display mb-4" style={{ fontSize: 'clamp(28px,4vw,38px)' }}>Agent vs. the real team vs. what actually happened</h2>
+          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Final comparison &mdash; {raceModel.drivers[String(driver)]?.name}, {country}</p>
+          <h2 className="font-display mb-4" style={{ fontSize: 'clamp(28px,4vw,38px)' }}>Your strategy vs. what they actually did</h2>
           <table className="w-full mt-6 text-[15px]" style={{ borderCollapse: 'collapse' }}>
             <thead>
-              <tr><th></th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Agent's recommended strategy</th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Real team's actual strategy</th></tr>
+              <tr><th></th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Your strategy</th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Their real strategy</th></tr>
             </thead>
             <tbody>
-              <Row label="Strategy" a="Soft (laps 1–3) → Medium (laps 4–53), no voluntary stop" b="Hard (laps 1–3) → Medium (laps 4–28) → fresh Medium (laps 29–53), 1 stop" />
-              <Row label="Model's predicted time" a={<strong className="font-display text-lg">1h 47m 31.52s</strong>} b={<strong className="font-display text-lg">1h 48m 01.22s</strong>} />
-              <Row label="Actual recorded race time" a="Never driven — hypothetical" b={<strong className="font-display text-lg">1h 51m 15.28s</strong>} />
-              <Row label="Model error vs. reality" a="Unknown — no real run to check against" b="−2.91% (model runs ~194s fast)" last />
+              <Row label="Compounds" a={compounds.join(' → ')} b={raceModel.drivers[String(driver)].actual_strategy.compounds.join(' → ')} />
+              <Row label="Voluntary stops" a={pitLaps.length ? pitLaps.join(', ') : 'none'} b={raceModel.drivers[String(driver)].actual_strategy.pit_laps.length ? raceModel.drivers[String(driver)].actual_strategy.pit_laps.join(', ') : 'none'} />
+              <Row label="Model's predicted time" a={<strong className="font-display text-lg">{result.total_time_str}</strong>} b={<strong className="font-display text-lg">{realResult.total_time_str}</strong>} />
+              <Row label="Actual recorded race time" a="Only meaningful if this is their real strategy" b={raceModel.drivers[String(driver)].actual_time_seconds != null ? <strong className="font-display text-lg">{formatSeconds(raceModel.drivers[String(driver)].actual_time_seconds)}</strong> : 'Not recorded (DNF or no data)'} last />
             </tbody>
           </table>
-          <p className="text-lg mt-6 max-w-xl" style={{ color: 'var(--text-muted)' }}>The agent's strategy is about 29.7 seconds faster, according to the model — almost all of it (26.3s) from skipping a pit stop that, in this model, buys no pace at all. Whether that holds in the real world depends on things the model can't see. Read on.</p>
+          <p className="text-lg mt-6 max-w-xl" style={{ color: 'var(--text-muted)' }}>
+            "Their real strategy" is reconstructed from this driver's actual historical stints in this race &mdash; not invented. The model's prediction for it is directly comparable to your strategy's prediction, since both come from the same fitted model.
+          </p>
         </section>
       )}
-      {!isItalyAntonelli && (
+      {!realResult && (
         <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-10" style={{ borderColor: 'var(--panel-border)' }}>
           <p className="text-lg max-w-xl" style={{ color: 'var(--text-muted)' }}>
-            The final comparison against the real team's strategy is specific to the Italian GP + Antonelli case study &mdash;
-            select that combination above to see it. For {country}, the simulator above works standalone with no fixed
-            baseline to compare against.
+            No real-strategy comparison available for this driver &mdash; either their real stint data couldn't be reconstructed, or a simulation hasn't completed yet.
           </p>
         </section>
       )}
