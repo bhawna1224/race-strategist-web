@@ -188,6 +188,35 @@ def compute_per_driver_base_pace(stint_fits, offsets, anchor, all_compounds, dri
     return result
 
 
+def compute_actual_strategies(stints_df, session_results: dict) -> dict:
+    """
+    Reconstruct each driver's REAL historical strategy from their actual
+    stint sequence (not the fitted degradation model -- this uses every
+    real stint, clean or not, since we want what they actually did, not
+    what's usable for curve-fitting). Converts to the same
+    (pit_laps, compounds) format simulate_strategy expects, so any
+    driver's real strategy can be re-run through the model for a
+    real-vs-predicted comparison.
+
+    session_results: dict of {driver_number: duration_seconds_or_None},
+    the official recorded race time, used for the real-vs-actual
+    comparison. None for drivers who didn't finish or have no recorded
+    duration (DNFs, disqualifications) -- the frontend should treat that
+    as "no comparison available," not zero.
+    """
+    result = {}
+    for driver, group in stints_df.groupby("driver_number"):
+        stints = group.sort_values("stint_number")
+        compounds = stints["compound"].tolist()
+        pit_laps = stints["lap_end"].tolist()[:-1]  # every stint's end lap except the last
+        result[str(int(driver))] = {
+            "pit_laps": [int(p) for p in pit_laps],
+            "compounds": compounds,
+            "actual_time_seconds": session_results.get(int(driver)),
+        }
+    return result
+
+
 def build_race_model(year: int, country: str) -> dict:
     """Pull data for one race and fit its model. This is the function
     the /api/race endpoint calls -- it's the live, on-demand version of
@@ -200,6 +229,7 @@ def build_race_model(year: int, country: str) -> dict:
     stints = openf1.get("stints", session_key=session_key)
     pits = openf1.get("pit", session_key=session_key)
     race_control = openf1.get("race_control", session_key=session_key)
+    session_results_raw = openf1.get("session_result", session_key=session_key)
 
     drivers_df = pd.DataFrame(drivers)[["driver_number", "name_acronym", "team_name"]].drop_duplicates(subset="driver_number")
     laps_df = pd.DataFrame(laps)
@@ -228,6 +258,27 @@ def build_race_model(year: int, country: str) -> dict:
 
     genuine_stops = pit_df[~pit_df["lap_number"].isin(neutralized_laps)]
     pit_loss_seconds = float(genuine_stops["lane_duration"].median()) if not genuine_stops.empty else 25.0
+
+    # Real official finishing time per driver, keyed by driver_number.
+    # None for drivers with no recorded duration (DNF/DSQ) -- see
+    # compute_actual_strategies' docstring for how the frontend should
+    # treat that.
+    session_results = {
+        r["driver_number"]: r.get("duration")
+        for r in session_results_raw
+        if r.get("duration") is not None
+    }
+    actual_strategies = compute_actual_strategies(stints_df, session_results)
+
+    # Merge the real strategy + real time into each driver's entry, so
+    # the frontend gets everything about a driver from one place.
+    for driver_key, actual in actual_strategies.items():
+        if driver_key in per_driver_pace:
+            per_driver_pace[driver_key]["actual_strategy"] = {
+                "pit_laps": actual["pit_laps"],
+                "compounds": actual["compounds"],
+            }
+            per_driver_pace[driver_key]["actual_time_seconds"] = actual["actual_time_seconds"]
 
     return {
         "race_name": meeting["meeting_official_name"],
