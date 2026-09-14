@@ -256,22 +256,33 @@ export default function App() {
         </div>
       </section>
 
-      <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-14" style={{ borderColor: 'var(--panel-border)' }}>
-        <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Final comparison</p>
-        <h2 className="font-display mb-4" style={{ fontSize: 'clamp(28px,4vw,38px)' }}>Agent vs. the real team vs. what actually happened</h2>
-        <table className="w-full mt-6 text-[15px]" style={{ borderCollapse: 'collapse' }}>
-          <thead>
-            <tr><th></th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Agent's recommended strategy</th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Real team's actual strategy</th></tr>
-          </thead>
-          <tbody>
-            <Row label="Strategy" a="Soft (laps 1–3) → Medium (laps 4–53), no voluntary stop" b="Hard (laps 1–3) → Medium (laps 4–28) → fresh Medium (laps 29–53), 1 stop" />
-            <Row label="Model's predicted time" a={<strong className="font-display text-lg">1h 47m 31.52s</strong>} b={<strong className="font-display text-lg">1h 48m 01.22s</strong>} />
-            <Row label="Actual recorded race time" a="Never driven — hypothetical" b={<strong className="font-display text-lg">1h 51m 15.28s</strong>} />
-            <Row label="Model error vs. reality" a="Unknown — no real run to check against" b="−2.91% (model runs ~194s fast)" last />
-          </tbody>
-        </table>
-        <p className="text-lg mt-6 max-w-xl" style={{ color: 'var(--text-muted)' }}>The agent's strategy is about 29.7 seconds faster, according to the model — almost all of it (26.3s) from skipping a pit stop that, in this model, buys no pace at all. Whether that holds in the real world depends on things the model can't see. Read on.</p>
-      </section>
+      {isItalyAntonelli && (
+        <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-14" style={{ borderColor: 'var(--panel-border)' }}>
+          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Final comparison &mdash; Italian GP + Antonelli only</p>
+          <h2 className="font-display mb-4" style={{ fontSize: 'clamp(28px,4vw,38px)' }}>Agent vs. the real team vs. what actually happened</h2>
+          <table className="w-full mt-6 text-[15px]" style={{ borderCollapse: 'collapse' }}>
+            <thead>
+              <tr><th></th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Agent's recommended strategy</th><th className="text-left text-sm font-semibold pb-3" style={{ color: 'var(--text-muted)' }}>Real team's actual strategy</th></tr>
+            </thead>
+            <tbody>
+              <Row label="Strategy" a="Soft (laps 1–3) → Medium (laps 4–53), no voluntary stop" b="Hard (laps 1–3) → Medium (laps 4–28) → fresh Medium (laps 29–53), 1 stop" />
+              <Row label="Model's predicted time" a={<strong className="font-display text-lg">1h 47m 31.52s</strong>} b={<strong className="font-display text-lg">1h 48m 01.22s</strong>} />
+              <Row label="Actual recorded race time" a="Never driven — hypothetical" b={<strong className="font-display text-lg">1h 51m 15.28s</strong>} />
+              <Row label="Model error vs. reality" a="Unknown — no real run to check against" b="−2.91% (model runs ~194s fast)" last />
+            </tbody>
+          </table>
+          <p className="text-lg mt-6 max-w-xl" style={{ color: 'var(--text-muted)' }}>The agent's strategy is about 29.7 seconds faster, according to the model — almost all of it (26.3s) from skipping a pit stop that, in this model, buys no pace at all. Whether that holds in the real world depends on things the model can't see. Read on.</p>
+        </section>
+      )}
+      {!isItalyAntonelli && (
+        <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-10" style={{ borderColor: 'var(--panel-border)' }}>
+          <p className="text-lg max-w-xl" style={{ color: 'var(--text-muted)' }}>
+            The final comparison against the real team's strategy is specific to the Italian GP + Antonelli case study &mdash;
+            select that combination above to see it. For {country}, the simulator above works standalone with no fixed
+            baseline to compare against.
+          </p>
+        </section>
+      )}
 
       <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-14" style={{ borderColor: 'var(--panel-border)' }}>
         <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>What the model can and can't tell you</p>
@@ -292,23 +303,25 @@ export default function App() {
         </div>
       </section>
 
-      <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-14" style={{ borderColor: 'var(--panel-border)' }}>
-        <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Real, verified case study &mdash; not a live demo</p>
-        <h2 className="font-display mb-4" style={{ fontSize: 'clamp(28px,4vw,38px)' }}>The agent's actual reasoning trail</h2>
-        <p className="text-lg max-w-xl" style={{ color: 'var(--text-muted)' }}>An LLM agent, connected to the underlying tools over MCP, made these five attempts for the Italian GP. Every number below matches what the tool actually returned.</p>
-        <div className="mt-5">
-          <Attempt n={1} strategy="Hard → Medium → Medium, stop @ 28" result="1h 48m 01.22s — baseline" tone="baseline"
-            reasoning="Baseline: replicate the real team's actual strategy to validate the model against reality." />
-          <Attempt n={2} strategy="Hard → Medium, no stop" result="1h 47m 34.92s — −26.30s" tone="faster"
-            reasoning="Since Medium has zero degradation in this model, refreshing tyres at lap 28 gains no pace but costs a full pit stop. Testing whether skipping it entirely beats the real strategy." />
-          <Attempt n={3} strategy="Soft → Medium, no stop" result="1h 47m 31.52s — −29.69s" tone="faster"
-            reasoning="Checking Soft's base pace advantage for the short pre-red-flag stint, which gets wiped by the red flag reset anyway." />
-          <Attempt n={4} strategy="Hard → Soft → Soft, stop @ 28" result="1h 48m 17.85s — worse, +16.63s" tone="slower"
-            reasoning="Testing whether splitting the post-restart laps into two Soft stints beats the flat-pace Medium baseline — does Soft's pace edge outweigh its wear plus an extra pit stop?" />
-          <Attempt n={5} strategy="Medium → Medium, no stop" result="1h 47m 32.99s" tone=""
-            reasoning="Sanity-checking the opening-compound choice: confirming Soft-open genuinely beats Medium-open and attempt 3 wasn't a fluke." last />
-        </div>
-      </section>
+      {isItalyAntonelli && (
+        <section className="relative z-10 border-t max-w-5xl mx-auto px-6 py-14" style={{ borderColor: 'var(--panel-border)' }}>
+          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Real, verified case study &mdash; not a live demo</p>
+          <h2 className="font-display mb-4" style={{ fontSize: 'clamp(28px,4vw,38px)' }}>The agent's actual reasoning trail</h2>
+          <p className="text-lg max-w-xl" style={{ color: 'var(--text-muted)' }}>An LLM agent, connected to the underlying tools over MCP, made these five attempts for the Italian GP. Every number below matches what the tool actually returned. This trail is fixed &mdash; it doesn't change when you try other strategies above.</p>
+          <div className="mt-5">
+            <Attempt n={1} strategy="Hard → Medium → Medium, stop @ 28" result="1h 48m 01.22s — baseline" tone="baseline"
+              reasoning="Baseline: replicate the real team's actual strategy to validate the model against reality." />
+            <Attempt n={2} strategy="Hard → Medium, no stop" result="1h 47m 34.92s — −26.30s" tone="faster"
+              reasoning="Since Medium has zero degradation in this model, refreshing tyres at lap 28 gains no pace but costs a full pit stop. Testing whether skipping it entirely beats the real strategy." />
+            <Attempt n={3} strategy="Soft → Medium, no stop" result="1h 47m 31.52s — −29.69s" tone="faster"
+              reasoning="Checking Soft's base pace advantage for the short pre-red-flag stint, which gets wiped by the red flag reset anyway." />
+            <Attempt n={4} strategy="Hard → Soft → Soft, stop @ 28" result="1h 48m 17.85s — worse, +16.63s" tone="slower"
+              reasoning="Testing whether splitting the post-restart laps into two Soft stints beats the flat-pace Medium baseline — does Soft's pace edge outweigh its wear plus an extra pit stop?" />
+            <Attempt n={5} strategy="Medium → Medium, no stop" result="1h 47m 32.99s" tone=""
+              reasoning="Sanity-checking the opening-compound choice: confirming Soft-open genuinely beats Medium-open and attempt 3 wasn't a fluke." last />
+          </div>
+        </section>
+      )}
 
       <footer className="relative z-10 border-t max-w-5xl mx-auto px-6 py-8 text-sm" style={{ borderColor: 'var(--panel-border)', color: 'var(--text-muted)' }}>
         Built on real telemetry from the OpenF1 API, pulled and fit live by the backend on request.
