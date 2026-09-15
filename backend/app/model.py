@@ -203,16 +203,35 @@ def compute_actual_strategies(stints_df, session_results: dict) -> dict:
     comparison. None for drivers who didn't finish or have no recorded
     duration (DNFs, disqualifications) -- the frontend should treat that
     as "no comparison available," not zero.
+
+    Every value here is explicitly cast to a native Python type (int,
+    str, float, or None) before returning -- pandas/numpy scalar types
+    (numpy.int64, numpy.float64, NaN) can silently fail JSON
+    serialization AFTER a FastAPI route successfully returns, which
+    produces an opaque "Internal Server Error" with no useful detail
+    message, outside of any of our own try/except blocks. Casting
+    explicitly here, at the source, avoids that class of bug entirely
+    rather than trying to catch it downstream.
     """
     result = {}
     for driver, group in stints_df.groupby("driver_number"):
         stints = group.sort_values("stint_number")
-        compounds = stints["compound"].tolist()
-        pit_laps = stints["lap_end"].tolist()[:-1]  # every stint's end lap except the last
+        # Guard against a missing/NaN compound value (a real gap seen in
+        # some races' raw data) -- str(None) would render as "None" in
+        # the UI, which is at least honest about the gap rather than
+        # crashing the whole response.
+        compounds = [str(c) if pd.notna(c) else None for c in stints["compound"].tolist()]
+        # Guard against a NaN lap_end (an incomplete/final stint with no
+        # recorded end, e.g. a mid-race retirement) -- int(nan) raises,
+        # which would otherwise take down this whole race's data.
+        raw_pit_laps = stints["lap_end"].tolist()[:-1]
+        pit_laps = [int(p) for p in raw_pit_laps if pd.notna(p)]
+
+        duration = session_results.get(int(driver))
         result[str(int(driver))] = {
-            "pit_laps": [int(p) for p in pit_laps],
+            "pit_laps": pit_laps,
             "compounds": compounds,
-            "actual_time_seconds": session_results.get(int(driver)),
+            "actual_time_seconds": float(duration) if duration is not None else None,
         }
     return result
 
