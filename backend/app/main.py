@@ -25,8 +25,11 @@ Endpoints:
 
 from pathlib import Path
 
+import traceback
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -34,6 +37,25 @@ from . import cache, model, openf1
 from .simulate import simulate_strategy
 
 app = FastAPI(title="Race Strategist API")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request, exc):
+    """
+    Safety net for anything that isn't caught by a route's own
+    try/except -- e.g. a JSON-serialization failure that happens AFTER a
+    route successfully returns, which is outside any try/except in that
+    route entirely. Without this, such failures surface as a bare,
+    undiagnosable "Internal Server Error" with no detail. This at least
+    logs the real traceback (visible in Render's logs) and returns a
+    JSON body with the exception message, so a bug like this is
+    debuggable from the response alone next time, not just from guessing.
+    """
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Unhandled error: {exc.__class__.__name__}: {exc}"},
+    )
 
 # CORS is only needed if you run the frontend separately from the backend
 # during development (e.g. a local dev server on a different port). When
@@ -116,17 +138,6 @@ def post_simulate(req: SimulateRequest):
 # Note: this now points at frontend/dist (the Vite build output), not the
 # frontend/ source directory -- see render.yaml for the build step that
 # produces it.
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
-
-# Keep the deployment failure obvious instead of silently returning 404s when
-# the Vite build was skipped. Render must run `npm install && npm run build`.
-if not FRONTEND_DIR.is_dir():
-    @app.get("/")
-    def frontend_not_built():
-        raise HTTPException(
-            status_code=503,
-            detail="Frontend build not found. Run: cd frontend && npm install && npm run build",
-        )
-else:
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
