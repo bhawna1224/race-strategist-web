@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TextEffect } from './components/motion-primitives/text-effect';
 import { AnimatedNumber } from './components/motion-primitives/animated-number';
@@ -52,6 +52,8 @@ export default function App() {
       .catch(() => setRaces([{ country: 'Italy', circuit: 'Monza' }]));
   }, []);
 
+  const isFirstLoad = useRef(true);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -60,6 +62,18 @@ export default function App() {
         setRaceModel(model);
         const driverKeys = Object.keys(model.drivers);
         if (!model.drivers[String(driver)]) setDriver(parseInt(driverKeys[0], 10));
+        // Reset the strategy inputs to sensible defaults for THIS race,
+        // rather than carrying over stale values from whichever race was
+        // selected before -- but skip this on the very first load, so
+        // the page still opens showing the real Antonelli strategy that
+        // matches the hero numbers above, instead of resetting away from
+        // it immediately.
+        if (!isFirstLoad.current) {
+          setNumStops(0);
+          setPitLaps([]);
+          setCompounds([model.compounds[0]]);
+        }
+        isFirstLoad.current = false;
       })
       .catch(e => setError(`Couldn't load ${country}: ${e.message}`))
       .finally(() => setLoading(false));
